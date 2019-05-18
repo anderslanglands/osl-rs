@@ -1,0 +1,13 @@
+[package]
+name = "osl-rs"
+version = "0.1.0"
+authors = ["Anders Langlands <anderslanglands@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nalgebra-glm = "0.4.0"
+oiio = {path="../oiio-rs"}
+
+[build-dependencies]
+cmake = "0.1.40"
+config = "0.9.3"
