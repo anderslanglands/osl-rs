@@ -14,6 +14,9 @@ use oiio::typedesc;
 use oiio::typedesc::TypeDesc;
 use oiio::Ustring;
 
+#[macro_use]
+extern crate derive_more;
+
 pub struct ClosureParam {
     pub typedesc: TypeDesc,
     pub offset: usize,
@@ -117,7 +120,7 @@ impl RendererServices for TestRenderer {
 }
 
 pub trait ShadingSystemAttribute {
-    const typedesc: TypeDesc;
+    const TYPEDESC: TypeDesc;
 
     fn set_attribute(&self, name: &str, ss: ffi::ShadingSystem) -> bool;
     fn set_group_attribute(
@@ -129,7 +132,7 @@ pub trait ShadingSystemAttribute {
 }
 
 impl ShadingSystemAttribute for i32 {
-    const typedesc: TypeDesc = typedesc::INT32;
+    const TYPEDESC: TypeDesc = typedesc::INT32;
 
     fn set_attribute(&self, name: &str, ss: ffi::ShadingSystem) -> bool {
         let name = std::ffi::CString::new(name).unwrap();
@@ -137,7 +140,7 @@ impl ShadingSystemAttribute for i32 {
             ffi::ShadingSystem_attribute(
                 ss,
                 name.as_ptr(),
-                Self::typedesc,
+                Self::TYPEDESC,
                 self as *const i32 as *const c_void,
             )
         }
@@ -155,7 +158,7 @@ impl ShadingSystemAttribute for i32 {
                 ss,
                 group.group,
                 name.as_ptr(),
-                Self::typedesc,
+                Self::TYPEDESC,
                 self as *const i32 as *const c_void,
             )
         }
@@ -163,7 +166,7 @@ impl ShadingSystemAttribute for i32 {
 }
 
 impl ShadingSystemAttribute for &[i32] {
-    const typedesc: TypeDesc = typedesc::INT32;
+    const TYPEDESC: TypeDesc = typedesc::INT32;
 
     fn set_attribute(&self, name: &str, ss: ffi::ShadingSystem) -> bool {
         let name = std::ffi::CString::new(name).unwrap();
@@ -172,9 +175,9 @@ impl ShadingSystemAttribute for &[i32] {
                 ss,
                 name.as_ptr(),
                 TypeDesc::new(
-                    Self::typedesc.basetype,
-                    Self::typedesc.aggregate,
-                    Self::typedesc.vecsemantics,
+                    Self::TYPEDESC.basetype,
+                    Self::TYPEDESC.aggregate,
+                    Self::TYPEDESC.vecsemantics,
                     self.len() as i32,
                 ),
                 self.as_ptr() as *const i32 as *const c_void,
@@ -195,9 +198,9 @@ impl ShadingSystemAttribute for &[i32] {
                 group.group,
                 name.as_ptr(),
                 TypeDesc::new(
-                    Self::typedesc.basetype,
-                    Self::typedesc.aggregate,
-                    Self::typedesc.vecsemantics,
+                    Self::TYPEDESC.basetype,
+                    Self::TYPEDESC.aggregate,
+                    Self::TYPEDESC.vecsemantics,
                     self.len() as i32,
                 ),
                 self.as_ptr() as *const i32 as *const c_void,
@@ -207,7 +210,7 @@ impl ShadingSystemAttribute for &[i32] {
 }
 
 impl ShadingSystemAttribute for f32 {
-    const typedesc: TypeDesc = typedesc::FLOAT;
+    const TYPEDESC: TypeDesc = typedesc::FLOAT;
 
     fn set_attribute(&self, name: &str, ss: ffi::ShadingSystem) -> bool {
         let name = std::ffi::CString::new(name).unwrap();
@@ -215,7 +218,7 @@ impl ShadingSystemAttribute for f32 {
             ffi::ShadingSystem_attribute(
                 ss,
                 name.as_ptr(),
-                Self::typedesc,
+                Self::TYPEDESC,
                 self as *const f32 as *const c_void,
             )
         }
@@ -233,7 +236,7 @@ impl ShadingSystemAttribute for f32 {
                 ss,
                 group.group,
                 name.as_ptr(),
-                Self::typedesc,
+                Self::TYPEDESC,
                 self as *const f32 as *const c_void,
             )
         }
@@ -241,7 +244,7 @@ impl ShadingSystemAttribute for f32 {
 }
 
 impl ShadingSystemAttribute for &[f32] {
-    const typedesc: TypeDesc = typedesc::FLOAT;
+    const TYPEDESC: TypeDesc = typedesc::FLOAT;
 
     fn set_attribute(&self, name: &str, ss: ffi::ShadingSystem) -> bool {
         let name = std::ffi::CString::new(name).unwrap();
@@ -250,9 +253,9 @@ impl ShadingSystemAttribute for &[f32] {
                 ss,
                 name.as_ptr(),
                 TypeDesc::new(
-                    Self::typedesc.basetype,
-                    Self::typedesc.aggregate,
-                    Self::typedesc.vecsemantics,
+                    Self::TYPEDESC.basetype,
+                    Self::TYPEDESC.aggregate,
+                    Self::TYPEDESC.vecsemantics,
                     self.len() as i32,
                 ),
                 self.as_ptr() as *const f32 as *const c_void,
@@ -273,9 +276,9 @@ impl ShadingSystemAttribute for &[f32] {
                 group.group,
                 name.as_ptr(),
                 TypeDesc::new(
-                    Self::typedesc.basetype,
-                    Self::typedesc.aggregate,
-                    Self::typedesc.vecsemantics,
+                    Self::TYPEDESC.basetype,
+                    Self::TYPEDESC.aggregate,
+                    Self::TYPEDESC.vecsemantics,
                     self.len() as i32,
                 ),
                 self.as_ptr() as *const f32 as *const c_void,
@@ -285,16 +288,17 @@ impl ShadingSystemAttribute for &[f32] {
 }
 
 impl ShadingSystemAttribute for &str {
-    const typedesc: TypeDesc = typedesc::STRING;
+    const TYPEDESC: TypeDesc = typedesc::STRING;
 
     fn set_attribute(&self, name: &str, ss: ffi::ShadingSystem) -> bool {
         let name = std::ffi::CString::new(name).unwrap();
         let value = std::ffi::CString::new(*self).unwrap();
+        let value = [value.as_ptr()]; // OSL expects a **char
         unsafe {
             ffi::ShadingSystem_attribute(
                 ss,
                 name.as_ptr(),
-                Self::typedesc,
+                Self::TYPEDESC,
                 value.as_ptr() as *const c_void,
             )
         }
@@ -308,12 +312,13 @@ impl ShadingSystemAttribute for &str {
     ) -> bool {
         let name = std::ffi::CString::new(name).unwrap();
         let value = std::ffi::CString::new(*self).unwrap();
+        let value = [value.as_ptr()]; // OSL expects a **char
         unsafe {
             ffi::ShadingSystem_group_attribute(
                 ss,
                 group.group,
                 name.as_ptr(),
-                Self::typedesc,
+                Self::TYPEDESC,
                 value.as_ptr() as *const c_void,
             )
         }
@@ -321,7 +326,7 @@ impl ShadingSystemAttribute for &str {
 }
 
 impl ShadingSystemAttribute for &[String] {
-    const typedesc: TypeDesc = typedesc::STRING;
+    const TYPEDESC: TypeDesc = typedesc::STRING;
 
     fn set_attribute(&self, name: &str, ss: ffi::ShadingSystem) -> bool {
         let name = std::ffi::CString::new(name).unwrap();
@@ -336,9 +341,9 @@ impl ShadingSystemAttribute for &[String] {
                 ss,
                 name.as_ptr(),
                 TypeDesc::new(
-                    Self::typedesc.basetype,
-                    Self::typedesc.aggregate,
-                    Self::typedesc.vecsemantics,
+                    Self::TYPEDESC.basetype,
+                    Self::TYPEDESC.aggregate,
+                    Self::TYPEDESC.vecsemantics,
                     self.len() as i32,
                 ),
                 value_ptrs.as_ptr() as *const c_void,
@@ -365,9 +370,9 @@ impl ShadingSystemAttribute for &[String] {
                 group.group,
                 name.as_ptr(),
                 TypeDesc::new(
-                    Self::typedesc.basetype,
-                    Self::typedesc.aggregate,
-                    Self::typedesc.vecsemantics,
+                    Self::TYPEDESC.basetype,
+                    Self::TYPEDESC.aggregate,
+                    Self::TYPEDESC.vecsemantics,
                     self.len() as i32,
                 ),
                 value_ptrs.as_ptr() as *const c_void,
@@ -377,7 +382,7 @@ impl ShadingSystemAttribute for &[String] {
 }
 
 impl ShadingSystemAttribute for &[&str] {
-    const typedesc: TypeDesc = typedesc::STRING;
+    const TYPEDESC: TypeDesc = typedesc::STRING;
 
     fn set_attribute(&self, name: &str, ss: ffi::ShadingSystem) -> bool {
         let name = std::ffi::CString::new(name).unwrap();
@@ -392,9 +397,9 @@ impl ShadingSystemAttribute for &[&str] {
                 ss,
                 name.as_ptr(),
                 TypeDesc::new(
-                    Self::typedesc.basetype,
-                    Self::typedesc.aggregate,
-                    Self::typedesc.vecsemantics,
+                    Self::TYPEDESC.basetype,
+                    Self::TYPEDESC.aggregate,
+                    Self::TYPEDESC.vecsemantics,
                     self.len() as i32,
                 ),
                 value_ptrs.as_ptr() as *const c_void,
@@ -421,9 +426,9 @@ impl ShadingSystemAttribute for &[&str] {
                 group.group,
                 name.as_ptr(),
                 TypeDesc::new(
-                    Self::typedesc.basetype,
-                    Self::typedesc.aggregate,
-                    Self::typedesc.vecsemantics,
+                    Self::TYPEDESC.basetype,
+                    Self::TYPEDESC.aggregate,
+                    Self::TYPEDESC.vecsemantics,
                     self.len() as i32,
                 ),
                 value_ptrs.as_ptr() as *const c_void,
@@ -578,8 +583,16 @@ impl ShadingSystem {
     /// Note: the attributes referred to as "string" are actually on the app
     /// side as ustring or const char* (they have the same data layout), NOT
     /// std::string!
-    pub fn attribute<T: ShadingSystemAttribute>(&mut self, name: &str, val: T) -> bool {
-        val.set_attribute(name, self.ss)
+    pub fn attribute<T: ShadingSystemAttribute>(
+        &mut self,
+        name: &str,
+        val: T,
+    ) -> Result<(), Error> {
+        if val.set_attribute(name, self.ss) {
+            Ok(())
+        } else {
+            Err(Error::SetAttributeFailed(name.into()))
+        }
     }
 
     pub fn group_attribute<T: ShadingSystemAttribute>(
@@ -587,10 +600,15 @@ impl ShadingSystem {
         group: &ShaderGroupRef,
         name: &str,
         val: T,
-    ) -> bool {
-        val.set_group_attribute(name, self.ss, group)
+    ) -> Result<(), Error> {
+        if val.set_group_attribute(name, self.ss, group) {
+            Ok(())
+        } else {
+            Err(Error::SetGroupAttributeFailed(name.into()))
+        }
     }
 
+    // FIXME: Handle potential null case
     pub fn shader_group_begin(&self, group_name: &str) -> ShaderGroupRef {
         let group_name = std::ffi::CString::new(group_name).unwrap();
         unsafe {
@@ -624,18 +642,26 @@ impl ShadingSystem {
         shaderusage: &str,
         shadername: &str,
         layername: &str,
-    ) -> bool {
-        let shaderusage = std::ffi::CString::new(shaderusage).unwrap();
-        let shadername = std::ffi::CString::new(shadername).unwrap();
-        let layername = std::ffi::CString::new(layername).unwrap();
-        unsafe {
+    ) -> Result<(), Error> {
+        let cshaderusage = std::ffi::CString::new(shaderusage).unwrap();
+        let cshadername = std::ffi::CString::new(shadername).unwrap();
+        let clayername = std::ffi::CString::new(layername).unwrap();
+        if unsafe {
             ffi::ShadingSystem_shader(
                 self.ss,
                 group.group,
-                shaderusage.as_ptr(),
-                shadername.as_ptr(),
-                layername.as_ptr(),
+                cshaderusage.as_ptr(),
+                cshadername.as_ptr(),
+                clayername.as_ptr(),
             )
+        } {
+            Ok(())
+        } else {
+            Err(Error::ShaderFailed(
+                shaderusage.into(),
+                shadername.into(),
+                layername.into(),
+            ))
         }
     }
 
@@ -645,8 +671,13 @@ impl ShadingSystem {
     /// for each renderer thread), and destroy it with destroy_thread_info
     /// when the thread terminates (and before the ShadingSystem is
     /// destroyed).
-    pub fn create_thread_info(&self) -> PerThreadInfo {
-        unsafe { ffi::ShadingSystem_create_thread_info(self.ss) }
+    pub fn create_thread_info(&self) -> Result<PerThreadInfo, Error> {
+        let tinfo = unsafe { ffi::ShadingSystem_create_thread_info(self.ss) };
+        if tinfo.is_null() {
+            Err(Error::ThreadInfoFailed)
+        } else {
+            Ok(tinfo)
+        }
     }
 
     /// Destroy a PerThreadInfo that was allocated by
@@ -661,8 +692,13 @@ impl ShadingSystem {
     /// thread-specific pointer created by create_thread_info.  The context
     /// can be used to shade many points; a typical usage is to allocate
     /// just one context per thread and use it for the whole run.
-    pub fn get_context(&self, tinfo: PerThreadInfo) -> ShadingContext {
-        unsafe { ffi::ShadingSystem_get_context(self.ss, tinfo) }
+    pub fn get_context(&self, tinfo: PerThreadInfo) -> Result<ShadingContext, Error> {
+        let ctx = unsafe { ffi::ShadingSystem_get_context(self.ss, tinfo) };
+        if ctx.is_null() {
+            Err(Error::GetShadingContextFailed)
+        } else {
+            Ok(ctx)
+        }
     }
 
     /// Return a ShadingContext to the pool.
@@ -684,8 +720,8 @@ impl ShadingSystem {
         group: &ShaderGroupRef,
         sg: &ShaderGlobals,
         run: bool,
-    ) -> bool {
-        unsafe {
+    ) -> Result<(), Error> {
+        if unsafe {
             ffi::ShadingSystem_execute(
                 self.ss,
                 context,
@@ -693,6 +729,10 @@ impl ShadingSystem {
                 sg as *const ShaderGlobals,
                 run,
             )
+        } {
+            Ok(())
+        } else {
+            Err(Error::ExecuteFailed)
         }
     }
 
@@ -815,6 +855,7 @@ pub struct ShaderSymbol {
 ///
 /// All points, vectors and normals are given in "common" space.
 ///
+#[repr(C)]
 pub struct ShaderGlobals {
     /// Surface position (and its x & y differentials).
     pub P: V3f32,
@@ -965,10 +1006,24 @@ impl ShaderGlobals {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum Error {
+    #[display(fmt = "PerThreadInfo creation failed")]
+    ThreadInfoFailed,
+    #[display(fmt = "Failed to create shader '{}' '{}' '{}'", _0, _1, _2)]
+    ShaderFailed(String, String, String),
+    #[display(fmt = "Failed to set group attribute '{}' on shading system", _0)]
+    SetGroupAttributeFailed(String),
+    #[display(fmt = "Failed to set attribute '{}' on shading system", _0)]
+    SetAttributeFailed(String),
+    #[display(fmt = "Symbol '{}' not found", _0)]
     SymbolNotFound(String),
+    #[display(fmt = "shade_image failed")]
     ShadeImageFailed,
+    #[display(fmt = "Failed to get shading context")]
+    GetShadingContextFailed,
+    #[display(fmt = "Failed to execute shading group")]
+    ExecuteFailed,
 }
 
 pub extern "C" fn handle_errors(level: i32, msg: *const std::os::raw::c_char) {
@@ -1130,7 +1185,11 @@ mod tests {
             // In order to most fully optimize the shader, we typically want any
             // shader parameter not explicitly specified to default to being
             // locked (i.e. no per-geometry override):
-            assert!(ss.attribute("lockgeom", 1i32));
+            ss.attribute("lockgeom", 1i32)
+                .expect("Could not set lockgeom");
+
+            ss.attribute("searchpath:shader", "osl")
+                .expect("Could not set searchpath");
 
             // Now we declare our shader.
             //
@@ -1167,7 +1226,8 @@ mod tests {
             let shadergroup = ss.shader_group_begin(group_name);
 
             // Set shader parameters and create shader
-            ss.shader(&shadergroup, "surface", "noisetest", "");
+            ss.shader(&shadergroup, "surface", "noisetest", "")
+                .expect("Shader creation failed");
 
             // set the group name as an attribute for some reason?
             // ...
@@ -1189,16 +1249,22 @@ mod tests {
                 // that for now
                 // FIXME: testshade converts to ustrings here before passing the
                 // raw string to ShadingSystem. Should we do the same?
-                ss.attribute("renderer_outputs", output_vars.as_slice());
+                ss.attribute("renderer_outputs", output_vars.as_slice())
+                    .expect("Failed to set renderer_outputs attribute");
             }
 
             let entry_layers = Vec::<String>::new();
             if !entry_layers.is_empty() {
-                ss.attribute("entry_layers", entry_layers.as_slice());
+                ss.attribute("entry_layers", entry_layers.as_slice())
+                    .expect("failed to set entry_layers attribute");
             }
 
-            let per_thread_info = ss.create_thread_info();
-            let ctx = ss.get_context(per_thread_info);
+            let per_thread_info = ss
+                .create_thread_info()
+                .expect("Could not create per-thread info");
+            let ctx = ss
+                .get_context(per_thread_info)
+                .expect("Could not create context");
 
             let sg = ShaderGlobals::new(ctx, renderer.borrow().rsw);
             // set all the stuff on the shader globals here
@@ -1207,7 +1273,8 @@ mod tests {
             // Because we can only call find_symbol or get_symbol on something that
             // has been set up to shade (or executed), we call execute() but tell it
             // not to actually run the shader.
-            ss.execute(ctx, &shadergroup, &sg, false);
+            ss.execute(ctx, &shadergroup, &sg, false)
+                .expect("Execute failed");
 
             // Find the symbol we want to output
             let sym_cout = ss
@@ -1257,7 +1324,9 @@ mod tests {
 
             // write image to disk
             let output_name = renderer.borrow().output_bufs[0].name();
-            renderer.borrow().output_bufs[0].write(&output_name, typedesc::FLOAT);
+            renderer.borrow().output_bufs[0]
+                .write(&output_name, typedesc::FLOAT)
+                .expect("Could not write image");
         }
     }
 }
