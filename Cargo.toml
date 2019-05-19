@@ -1,14 +1,5 @@
-[package]
-name = "osl-rs"
-version = "0.1.0"
-authors = ["Anders Langlands <anderslanglands@gmail.com>"]
-edition = "2018"
-
-[dependencies]
-nalgebra-glm = "0.4.0"
-oiio = {path="../oiio-rs"}
-derive_more = "0.14.0"
-
-[build-dependencies]
-cmake = "0.1.40"
-config = "0.9.3"
+[workspace]
+members = [
+    "osl",
+    "osl_derive",
+]

@@ -1,6 +1,6 @@
 mod ffi;
 use ffi::{ErrCode, PerThreadInfo, RendererServicesWrapper, ShadingContext, VerbosityLevel};
-mod math;
+pub mod math;
 pub use math::*;
 
 use std::os::raw::{c_char, c_void};
@@ -10,9 +10,9 @@ use std::sync::Arc;
 
 use oiio::imagebuf::ImageBuf;
 use oiio::imageio::{ImageSpec, ROI};
-use oiio::typedesc;
-use oiio::typedesc::TypeDesc;
-use oiio::Ustring;
+pub use oiio::typedesc;
+pub use oiio::typedesc::TypeDesc;
+pub use oiio::Ustring;
 
 #[macro_use]
 extern crate derive_more;
@@ -1052,6 +1052,8 @@ pub extern "C" fn handle_errors(level: i32, msg: *const std::os::raw::c_char) {
 mod tests {
     use crate::*;
 
+    use osl_derive::Closure;
+
     #[repr(i32)]
     enum ClosureID {
         Emission = 0,
@@ -1060,16 +1062,27 @@ mod tests {
     }
 
     #[repr(C)]
-    struct EmptyParams {}
+    #[derive(Closure)]
+    #[name = "emission"]
+    #[id = 0]
+    struct EmissionParams {}
 
     #[repr(C)]
+    #[derive(Closure)]
+    #[name = "diffuse"]
+    #[id = 1]
     struct DiffuseParams {
+        #[vecsemantics = "NORMAL"]
         N: V3f32,
     }
 
     #[repr(C)]
+    #[derive(Closure)]
+    #[name = "microfacet"]
+    #[id = 2]
     struct MicrofacetParams {
         dist: Ustring,
+        #[vecsemantics = "NORMAL"]
         N: V3f32,
         U: V3f32,
         xalpha: f32,
@@ -1088,91 +1101,15 @@ mod tests {
             let rs: Arc<RefCell<dyn RendererServices>> = c;
             let mut ss = ShadingSystem::new(rs);
 
-            let mut closure_params = Vec::new();
-            let mut offset = 0;
-
-            closure_params.push(ClosureParam {
-                typedesc: oiio::typedesc::STRING,
-                offset,
-                key: None,
-                field_size: std::mem::size_of::<Ustring>(),
-            });
-            offset += std::mem::size_of::<String>();
-            println!("sizeof String: {}", std::mem::size_of::<String>());
-            println!("alignof String: {}", std::mem::align_of::<String>());
-            println!("offset: {}", offset);
-
-            closure_params.push(ClosureParam {
-                typedesc: oiio::typedesc::NORMAL,
-                offset,
-                key: None,
-                field_size: std::mem::size_of::<V3f32>(),
-            });
-            offset += std::mem::size_of::<V3f32>();
-            println!("sizeof V3f32: {}", std::mem::size_of::<V3f32>());
-            println!("alignof V3f32: {}", std::mem::align_of::<V3f32>());
-            println!("offset: {}", offset);
-
-            closure_params.push(ClosureParam {
-                typedesc: oiio::typedesc::VECTOR,
-                offset,
-                key: None,
-                field_size: std::mem::size_of::<V3f32>(),
-            });
-            offset += std::mem::size_of::<V3f32>();
-            println!("offset: {}", offset);
-
-            // xalpha
-            closure_params.push(ClosureParam {
-                typedesc: oiio::typedesc::FLOAT,
-                offset,
-                key: None,
-                field_size: std::mem::size_of::<f32>(),
-            });
-            offset += std::mem::size_of::<f32>();
-
-            // yalpha
-            closure_params.push(ClosureParam {
-                typedesc: oiio::typedesc::FLOAT,
-                offset,
-                key: None,
-                field_size: std::mem::size_of::<f32>(),
-            });
-            offset += std::mem::size_of::<f32>();
-
-            // eta
-            closure_params.push(ClosureParam {
-                typedesc: oiio::typedesc::FLOAT,
-                offset,
-                key: None,
-                field_size: std::mem::size_of::<f32>(),
-            });
-            offset += std::mem::size_of::<f32>();
-
-            // refract
-            closure_params.push(ClosureParam {
-                typedesc: oiio::typedesc::INT32,
-                offset,
-                key: None,
-                field_size: std::mem::size_of::<i32>(),
-            });
-            offset += std::mem::size_of::<f32>();
-
-            // finish
-            closure_params.push(ClosureParam {
-                typedesc: oiio::typedesc::UNKNOWN,
-                offset: std::mem::size_of::<MicrofacetParams>(),
-                key: None,
-                field_size: std::mem::align_of::<MicrofacetParams>(),
-            });
-
             renderer.borrow_mut().init_shading_system(&ss);
 
             // Register the layout of all closures known to this renderer
             // Any closure used by the shader which is not registered, or
             // registered with a different number of arguments will lead
             // to a runtime error.
-            ss.register_closure("microfacet", ClosureID::Microfacet as i32, &closure_params);
+            MicrofacetParams::register_with(&mut ss);
+            DiffuseParams::register_with(&mut ss);
+            EmissionParams::register_with(&mut ss);
 
             // Remember that each shader parameter may optionally have a
             // metadata hint [[int lockgeom=...]], where 0 indicates that the

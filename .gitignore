@@ -1,4 +1,8 @@
 /target
+/osl/target
+/osl_derive/target
 **/*.rs.bk
 Cargo.lock
 .vscode
+/osl/*.exr
+/osl/*.oso
